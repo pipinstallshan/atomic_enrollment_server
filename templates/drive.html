@@ -1,0 +1,205 @@
+{% extends "base.html" %}
+
+{% block title %}Google Drive Accounts - Video Automation{% endblock %}
+
+{% block extra_css %}
+<style>
+    .account-list {
+        background: white;
+        border-radius: 8px;
+        padding: 20px;
+        margin-bottom: 20px;
+        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+    }
+
+    .account-item {
+        display: flex;
+        align-items: center;
+        padding: 15px;
+        border-bottom: 1px solid #eee;
+    }
+
+    .account-item:last-child {
+        border-bottom: none;
+    }
+
+    .account-info {
+        flex-grow: 1;
+    }
+
+    .account-name {
+        font-weight: bold;
+        margin-bottom: 5px;
+    }
+
+    .account-email {
+        color: #666;
+        font-size: 0.9em;
+    }
+
+    .remove-btn {
+        background-color: #dc3545;
+        color: white;
+        border: none;
+        padding: 8px 15px;
+        border-radius: 4px;
+        cursor: pointer;
+        transition: background-color 0.3s;
+    }
+
+    .remove-btn:hover {
+        background-color: #c82333;
+    }
+
+    .connect-btn {
+        background-color: #28a745;
+        color: white;
+        border: none;
+        padding: 12px 24px;
+        border-radius: 4px;
+        cursor: pointer;
+        font-size: 1em;
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        transition: background-color 0.3s;
+        text-decoration: none;
+    }
+
+    .connect-btn:hover {
+        background-color: #218838;
+    }
+
+    .connect-btn i {
+        font-size: 1.2em;
+    }
+
+    .no-accounts {
+        text-align: center;
+        padding: 40px;
+        color: #666;
+    }
+
+    .youtube-icon {
+        width: 24px;
+        height: 24px;
+        margin-right: 8px;
+        vertical-align: middle;
+    }
+
+    .account-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 20px;
+    }
+
+    .loading {
+        opacity: 0.7;
+        cursor: not-allowed;
+    }
+
+    .error-message {
+        background-color: #f8d7da;
+        color: #721c24;
+        padding: 10px;
+        border-radius: 4px;
+        margin-bottom: 20px;
+    }
+    
+    .success-message {
+        background-color: #d4edda;
+        color: #155724;
+        padding: 10px;
+        border-radius: 4px;
+        margin-bottom: 20px;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="account-header">
+    <h1>Drive Accounts</h1>
+    <a href="{{ url_for('drive.connect') }}" class="connect-btn">
+        Connect Drive Account
+    </a>
+</div>
+
+{% with messages = get_flashed_messages(with_categories=true) %}
+    {% if messages %}
+        {% for category, message in messages %}
+            <div class="{{ category }}-message">{{ message }}</div>
+        {% endfor %}
+    {% endif %}
+{% endwith %}
+<div class="error-message" id="error-message"></div>
+
+<div class="account-list">
+    {% if accounts %}
+        {% for account in accounts %}
+        <div class="account-item">
+            <div class="account-info">
+                <div class="account-name">{{ account.account_name }}</div>
+                <div class="account-email">{{ account.email }}</div>
+                {% if account.needs_reauth %}
+                <div class="error-message" style="margin-top: 10px;">
+                    You need to redo the integration for this account. 
+                    Please remove it and add it again.
+                </div>
+                {% endif %}
+            </div>
+            <button class="remove-btn" onclick="removeAccount({{ account.id }})">Remove</button>
+        </div>
+        {% endfor %}
+    {% else %}
+        <div class="no-accounts">
+            <p>No Drive accounts connected yet.</p>
+            <p>Click the "Connect Drive Account" button above to add your first account.</p>
+        </div>
+    {% endif %}
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    function removeAccount(accountId) {
+        if (confirm('Are you sure you want to remove this G-Drive account?')) {
+            const button = event.target;
+            button.disabled = true;
+            button.classList.add('loading');
+            
+            fetch(`/drive/disconnect/${accountId}`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                }
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.status === 'success') {
+                    // Reload the page to show updated list
+                    window.location.reload();
+                } else {
+                    showError(data.message || 'Failed to remove account');
+                    button.disabled = false;
+                    button.classList.remove('loading');
+                }
+            })
+            .catch(error => {
+                showError('An error occurred while removing the account');
+                button.disabled = false;
+                button.classList.remove('loading');
+            });
+        }
+    }
+
+    function showError(message) {
+        const errorDiv = document.getElementById('error-message');
+        errorDiv.textContent = message;
+        errorDiv.style.display = 'block';
+        setTimeout(() => {
+            errorDiv.style.display = 'none';
+        }, 5000);
+    }
+</script>
+{% endblock %}

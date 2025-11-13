@@ -1,0 +1,429 @@
+{% extends "base.html" %}
+
+{% block title %}Leads Overview - Video Automation (AI Native){% endblock %}
+
+{% block extra_css %}
+<style>
+    .page-container {
+        display: flex;
+        height: calc(100vh - 60px); /* Example: subtract header height if needed */
+        overflow: hidden;
+    }
+    /* LEFT SIDE: Table Container */
+    .leads-table-container {
+        flex: 1;
+        display: flex;
+        flex-direction: column;
+        overflow: auto;
+        background-color: #f5f6fa;
+    }
+    .action-bar {
+        padding: 10px 20px;
+        background-color: #f5f6fa;
+        border-bottom: 1px solid #ccc;
+        display: flex;
+        align-items: center;
+        gap: 10px;
+    }
+
+    .table-wrapper {
+        flex: 1;
+        display: flex;
+        flex-direction: column;
+        overflow: auto;
+        padding: 10px 20px;
+    }
+    #leadsTable {
+        width: 100%;
+    }
+    #leadsTable th, #leadsTable td {
+        border: 1px solid #ddd;
+        padding: 8px 16px;
+        text-align: left;
+    }
+    #leadsTable thead th {
+        background-color: #f2f2f2;
+        position: sticky;
+        top: 0;
+    }
+
+    /* RIGHT SIDE: Chat Sidebar */
+    .chat-sidebar {
+        width: 20%;
+        border-left: 1px solid #ccc;
+        display: flex;
+        flex-direction: column;
+        background-color: #fff;
+    }
+    .chat-messages {
+        flex: 1;
+        padding: 10px;
+        overflow-y: auto;
+    }
+
+    /* Allow wrapping so long text is still visible */
+    .message {
+        margin-bottom: 10px;
+        white-space: pre-wrap;
+        word-wrap: break-word;
+        overflow-wrap: break-word;
+    }
+
+    .message.system {
+        color: #999;
+        font-style: italic;
+    }
+    .message.assistant {
+        background-color: #f0f8ff;
+        border-radius: 4px;
+        padding: 6px 10px;
+    }
+    .message.user {
+        background-color: #d1ffe0;
+        border-radius: 4px;
+        padding: 6px 10px;
+        text-align: right;
+    }
+    /* Distinct gray/terminal style for tool messages */
+    .message.tool {
+        background-color: #eee; 
+        color: #333;
+        font-family: monospace;
+        border-left: 4px solid #999;
+        padding: 6px 10px;
+    }
+    /* Label within the tool message */
+    .tool-label {
+        font-weight: bold;
+        margin-bottom: 5px;
+    }
+
+    .chat-input {
+        display: flex;
+        flex-direction: row;
+        padding: 10px;
+        border-top: 1px solid #ccc;
+    }
+    #chatTextArea {
+        flex: 1;
+        resize: none;
+        height: 50px;
+        padding: 6px;
+    }
+    .btn-send {
+        padding: 10px 15px;
+        background-color: #3498db;
+        color: #fff;
+        border: none;
+        margin-left: 10px;
+        border-radius: 4px;
+        cursor: pointer;
+    }
+    .btn-send:hover {
+        background-color: #2980b9;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="page-container">
+
+    <!-- LEFT SIDE: Leads Table + Buttons -->
+    <div class="leads-table-container">
+        <div class="action-bar">
+            <button id="prefillRenderBtn" class="btn-blue" style="font-size:0.8em;">Render</button>
+            <button id="prefillExportBtn" class="btn-green" style="font-size:0.8em;">Export</button>
+        </div>
+        <div class="table-wrapper">
+            <table id="leadsTable" class="display">
+                <thead>
+                    <tr>
+                        <th>
+                            <input type="checkbox" id="selectAll" />
+                        </th>
+                        <!-- New column header for "Created" date -->
+                        <th>Created</th>
+                        {% for field in ordered_fields %}
+                        <th>{{ field.display_name }}</th>
+                        {% endfor %}
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for lead in leads_data %}
+                    <tr data-lead-id="{{ lead.id }}">
+                        <td>
+                            <input type="checkbox" class="rowCheckbox" data-lead-id="{{ lead.id }}" />
+                        </td>
+                        <!-- Show only the date portion here -->
+                        <td>
+                            {{ lead.created_at.strftime('%Y-%m-%d') if lead.created_at else "" }}
+                        </td>
+                        {% for field in ordered_fields %}
+                        <td>
+                            {{ lead[field.name] if lead[field.name] else "" }}
+                        </td>
+                        {% endfor %}
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+            
+            <!-- Pagination controls -->
+            <div class="pagination-controls" style="margin-top: 15px; text-align: center;">
+                {% if pagination.has_prev %}
+                    <a href="{{ url_for('main.leads_overview', page=pagination.prev_num, search=search) }}" class="btn-blue">Previous</a>
+                {% else %}
+                    <button class="btn-blue" disabled>Previous</button>
+                {% endif %}
+                
+                <span style="margin: 0 15px;">
+                    Page {{ pagination.page }} of {{ pagination.pages }} 
+                    (Showing {{ leads_data|length }} of {{ total_leads }} leads)
+                </span>
+                
+                {% if pagination.has_next %}
+                    <a href="{{ url_for('main.leads_overview', page=pagination.next_num, search=search) }}" class="btn-blue">Next</a>
+                {% else %}
+                    <button class="btn-blue" disabled>Next</button>
+                {% endif %}
+            </div>
+
+            <!-- Server-side search form -->
+            <div class="search-form" style="margin-top: 15px; text-align: center;">
+                <form action="{{ url_for('main.leads_overview') }}" method="get">
+                    <input type="text" name="search" placeholder="Search leads..." value="{{ search }}" style="padding: 6px 10px; width: 250px; border-radius: 4px; border: 1px solid #ccc;">
+                    <button type="submit" class="btn-blue">Search</button>
+                    {% if search %}
+                        <a href="{{ url_for('main.leads_overview') }}" class="btn-blue">Clear</a>
+                    {% endif %}
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- RIGHT SIDE: Chat Sidebar -->
+    <div class="chat-sidebar">
+        <div id="chatMessages" class="chat-messages">
+            <!-- Messages appended by JavaScript -->
+        </div>
+        <div class="chat-input">
+            <textarea id="chatTextArea" placeholder="Type your message..."></textarea>
+            <button class="btn-send" id="chatSendBtn">Send</button>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<!-- Include the Marked library so we can parse Markdown -->
+<script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+<script src="https://cdn.datatables.net/fixedheader/3.3.1/js/dataTables.fixedHeader.min.js"></script>
+<script>
+    // Our conversation array
+    let conversation = [];
+
+    // Keep track of which leads are selected
+    let selectedLeads = [];
+
+    $(document).ready(function () {
+        // Load previously selected leads from localStorage if available
+        if (localStorage.getItem('selectedLeads')) {
+            try {
+                selectedLeads = JSON.parse(localStorage.getItem('selectedLeads'));
+                
+                // Check boxes for leads that were previously selected
+                $('.rowCheckbox').each(function() {
+                    const leadId = $(this).data('lead-id');
+                    if (selectedLeads.includes(leadId)) {
+                        $(this).prop('checked', true);
+                    }
+                });
+                
+                // Update Select All checkbox state
+                updateSelectAllCheckbox();
+            } catch (e) {
+                console.error("Error loading selected leads:", e);
+                localStorage.removeItem('selectedLeads');
+            }
+        }
+
+        // Initialize DataTables
+        $('#leadsTable').DataTable({
+            scrollX: true,
+            paging: false, // Disable DataTables paging as we're using server-side pagination
+            fixedHeader: true,
+            order: [[1, 'desc']], // Sort by the second column (index=1)
+            searching: true, // Keep search functionality
+            info: false // Hide "Showing X of Y entries" as we have our own pagination info
+        });
+
+        // SELECT-ALL logic
+        $('#selectAll').on('change', function() {
+            const checked = $(this).is(':checked');
+            $('.rowCheckbox').prop('checked', checked);
+            updateSelectedLeads();
+        });
+
+        // Whenever an individual checkbox changes, update our list:
+        $('.rowCheckbox').on('change', updateSelectedLeads);
+
+        // Render / Export button prefill
+        $('#prefillRenderBtn').on('click', function() {
+            let text = "Render videos for all selected Leads, please.";
+            $('#chatTextArea').val(text);
+        });
+        $('#prefillExportBtn').on('click', function() {
+            let text = "Export the selected Leads as a CSV using template: ";
+            $('#chatTextArea').val(text);
+        });
+
+        // Chat send logic
+        $('#chatSendBtn').on('click', function() {
+            sendChatMessage();
+        });
+        $('#chatTextArea').on('keydown', function(e) {
+            if ((e.metaKey || e.ctrlKey) && e.key === 'Enter') {
+                e.preventDefault();
+                sendChatMessage();
+            }
+        });
+
+        // Drag-to-select logic
+        let isMouseDown = false;
+        let checkMode = null; // The state (true/false) to apply while dragging
+
+        // If user mousedown on first cell, toggle that row's box and remember the mode
+        $('#leadsTable tbody').on('mousedown', 'td:first-child', function(e) {
+            // If the click target is the actual checkbox input, skip our manual toggle
+            if ($(e.target).hasClass('rowCheckbox')) {
+                return; 
+            }
+
+            e.preventDefault();
+
+            let $checkbox = $(this).find('.rowCheckbox');
+            checkMode = !$checkbox.prop('checked');
+            $checkbox.prop('checked', checkMode);
+            updateSelectedLeads();
+            isMouseDown = true;
+        });
+
+        // If we move (drag) over other first cells while the mouse is down, set them to the same state
+        $('#leadsTable tbody').on('mouseenter', 'td:first-child', function() {
+            if (isMouseDown) {
+                let $checkbox = $(this).find('.rowCheckbox');
+                $checkbox.prop('checked', checkMode);
+                updateSelectedLeads();
+            }
+        });
+
+        // When the mouse is released anywhere, turn off drag mode
+        $(document).on('mouseup', function() {
+            isMouseDown = false;
+        });
+    });
+
+    function updateSelectedLeads() {
+        selectedLeads = [];
+        $('.rowCheckbox:checked').each(function() {
+            selectedLeads.push($(this).data('lead-id'));
+        });
+        
+        // Save to localStorage
+        localStorage.setItem('selectedLeads', JSON.stringify(selectedLeads));
+    }
+    
+    // Add function to update Select All checkbox state
+    function updateSelectAllCheckbox() {
+        const totalCheckboxes = $('.rowCheckbox').length;
+        const checkedCheckboxes = $('.rowCheckbox:checked').length;
+        
+        if (checkedCheckboxes === 0) {
+            $('#selectAll').prop('checked', false).prop('indeterminate', false);
+        } else if (checkedCheckboxes === totalCheckboxes) {
+            $('#selectAll').prop('checked', true).prop('indeterminate', false);
+        } else {
+            $('#selectAll').prop('checked', false).prop('indeterminate', true);
+        }
+    }
+
+    function sendChatMessage() {
+        const msg = $('#chatTextArea').val().trim();
+        if (!msg) return;
+
+        // Add the user message to conversation
+        let userMsg = { role: 'user', content: msg };
+        conversation.push(userMsg);
+        appendMessageToChat('user', msg);
+
+        // Clear input
+        $('#chatTextArea').val('');
+
+        // Prepare payload
+        let payload = {
+            messages: conversation,
+            selected_leads: selectedLeads
+        };
+
+        fetch('/ai_chat', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload)
+        })
+        .then(response => response.json())
+        .then(data => {
+            console.log(data);
+            // Overwrite conversation with returned messages
+            if (data.messages && Array.isArray(data.messages)) {
+                conversation = data.messages;
+                document.getElementById('chatMessages').innerHTML = '';
+
+                // Render each message, skipping empty assistant content
+                conversation.forEach(msg => {
+                    if (msg.role === 'assistant' && (!msg.content || msg.content.trim() === '')) {
+                        return; // skip empty assistant messages
+                    }
+                    appendMessageToChat(msg.role, msg.content);
+                });
+            }
+        })
+        .catch(err => {
+            console.error(err);
+            let errorMsg = "Error: " + err.message;
+            conversation.push({ role: 'system', content: errorMsg });
+            appendMessageToChat('system', errorMsg);
+        });
+    }
+
+    /**
+     * Renders a message into the chat. 
+     * - Uses Marked to parse Markdown
+     * - Distinct styling/label for `tool` role.
+     */
+    function appendMessageToChat(role, text) {
+        let msgDiv = document.createElement('div');
+        msgDiv.classList.add('message', role);
+
+        // If it's a tool message, add an "Internal Action" label
+        if (role === 'tool') {
+            let labelDiv = document.createElement('div');
+            labelDiv.classList.add('tool-label');
+            labelDiv.textContent = 'Internal Action';
+            msgDiv.appendChild(labelDiv);
+        }
+
+        // Convert Markdown to HTML
+        let contentHtml = marked.parse(text || '');
+        // Insert parsed HTML
+        let contentDiv = document.createElement('div');
+        contentDiv.innerHTML = contentHtml;
+        msgDiv.appendChild(contentDiv);
+
+        document.getElementById('chatMessages').appendChild(msgDiv);
+
+        // Scroll to bottom
+        let chatEl = document.getElementById('chatMessages');
+        chatEl.scrollTop = chatEl.scrollHeight;
+    }
+</script>
+{% endblock %}

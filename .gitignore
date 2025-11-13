@@ -1,0 +1,15 @@
+.DS_Store
+
+temp/
+output/
+logs/
+data/
+instance/
+venv/
+
+temp_test.py
+*.mp4
+*.mp3
+
+!content/**/*.mp4
+google-chrome-stable_current_amd64.deb

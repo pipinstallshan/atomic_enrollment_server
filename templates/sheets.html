@@ -1,0 +1,140 @@
+{% extends "base.html" %}
+
+{% block title %}Sheets - Video Automation{% endblock %}
+
+{% block extra_css %}
+<style>
+    .sheets-container {
+        background: white;
+        border-radius: 8px;
+        padding: 20px;
+        margin-bottom: 20px;
+        overflow-x: auto;
+        max-width: none;  /* Override container max-width */
+        margin-left: 20px;
+        margin-right: 20px;
+    }
+
+    .data-table {
+        width: 100%;
+        border-collapse: collapse;
+        margin-top: 20px;
+    }
+
+    .data-table th,
+    .data-table td {
+        padding: 12px;
+        text-align: left;
+        border-bottom: 1px solid #ddd;
+    }
+
+    .data-table th {
+        background-color: #f8f9fa;
+        font-weight: bold;
+        position: sticky;
+        top: 0;
+    }
+
+    .data-table tr:hover {
+        background-color: #f5f5f5;
+    }
+
+    /* Future edit functionality styles */
+    .editable:hover {
+        background-color: #e9ecef;
+        cursor: pointer;
+    }
+
+    /* Add these styles for future sorting functionality */
+    .sortable {
+        cursor: pointer;
+    }
+
+    .sortable:after {
+        content: ' ↕';
+        font-size: 12px;
+        color: #999;
+    }
+
+    /* Pagination styles for future use */
+    .pagination {
+        margin-top: 20px;
+        display: flex;
+        justify-content: center;
+        gap: 10px;
+    }
+
+    .pagination button {
+        padding: 8px 12px;
+        border: 1px solid #ddd;
+        background: white;
+        cursor: pointer;
+    }
+
+    .pagination button:hover {
+        background: #f5f5f5;
+    }
+
+    .pagination button:disabled {
+        background: #eee;
+        cursor: not-allowed;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<h1>Sheets View</h1>
+
+<div class="sheets-container">
+    <table class="data-table">
+        <thead>
+            <tr>
+                {% for field in fields %}
+                <th class="sortable">{{ field.display_name }}</th>
+                {% endfor %}
+            </tr>
+        </thead>
+        <tbody>
+            {% for lead in leads %}
+            <tr>
+                {% for field in fields %}
+                <td class="editable">{{ lead_data[lead.id][field.name] if lead.id in lead_data and field.name in lead_data[lead.id] else '' }}</td>
+                {% endfor %}
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+
+    {# Pagination section for future use #}
+    <div class="pagination">
+        <button id="prev-page" disabled>Previous</button>
+        <span>Page <span id="current-page">1</span></span>
+        <button id="next-page">Next</button>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    // This section is prepared for future functionality
+    document.addEventListener('DOMContentLoaded', function() {
+        // Future sorting functionality will go here
+        const sortableHeaders = document.querySelectorAll('.sortable');
+        sortableHeaders.forEach(header => {
+            header.addEventListener('click', () => {
+                // Sort functionality will be implemented here
+                console.log('Sorting by:', header.textContent);
+            });
+        });
+
+        // Future edit functionality will go here
+        const editableCells = document.querySelectorAll('.editable');
+        editableCells.forEach(cell => {
+            cell.addEventListener('click', () => {
+                // Edit functionality will be implemented here
+                console.log('Editing cell:', cell.textContent);
+            });
+        });
+    });
+</script>
+{% endblock %}

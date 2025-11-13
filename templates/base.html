@@ -1,0 +1,124 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>{% block title %}Video Automation{% endblock %}</title>
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            font-family: Arial, sans-serif;
+            display: flex;
+        }
+        
+        /* Sidebar Styles */
+        .sidebar {
+            width: 250px !important;
+            flex: 0 0 250px;
+            background-color: #2c3e50;
+            min-height: 100vh;
+            color: white;
+            padding-top: 20px;
+        }
+        
+        .sidebar-header {
+            padding: 0 20px;
+            margin-bottom: 30px;
+        }
+        
+        .sidebar-nav {
+            list-style: none;
+            padding: 0;
+            margin: 0;
+        }
+        
+        .sidebar-nav li {
+            padding: 0;
+        }
+        
+        .sidebar-nav a {
+            color: white;
+            text-decoration: none;
+            padding: 15px 20px;
+            display: block;
+            transition: background-color 0.3s;
+        }
+        
+        .sidebar-nav a:hover {
+            background-color: #34495e;
+        }
+        
+        .sidebar-nav a.active {
+            background-color: #3498db;
+        }
+        
+        /* Main Content Styles */
+        .main-content {
+            flex-grow: 1;
+            padding: 20px;
+            background-color: #f5f6fa;
+            height: 100vh;
+            overflow-y: auto;
+        }
+        
+        /* Common Styles */
+        .container {
+            max-width: none;
+            margin: 0 20px;
+        }
+        
+        h1 {
+            color: #2c3e50;
+            margin-bottom: 30px;
+        }
+        
+        /* Message Styles */
+        .message {
+            margin: 20px 0;
+            padding: 10px;
+            border-radius: 4px;
+        }
+        
+        .success {
+            background-color: #d4edda;
+            border-color: #c3e6cb;
+            color: #155724;
+        }
+        
+        .error {
+            background-color: #f8d7da;
+            border-color: #f5c6cb;
+            color: #721c24;
+        }
+    </style>
+    {% block extra_css %}{% endblock %}
+    <script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
+
+    <link rel="stylesheet" type="text/css" href="https://cdn.datatables.net/1.13.1/css/jquery.dataTables.css">
+    <script src="https://cdn.datatables.net/1.13.1/js/jquery.dataTables.js"></script>
+
+</head>
+<body>
+    <!-- Sidebar -->
+    <div class="sidebar">
+        <div class="sidebar-header">
+            <h2>Video Automation</h2>
+        </div>
+        <ul class="sidebar-nav">
+            <li><a href="{{ url_for('main.upload_file') }}" {% if request.endpoint == 'main.upload_file' %}class="active"{% endif %}>Upload CSV</a></li>
+            <li><a href="{{ url_for('drive.accounts') }}" {% if request.endpoint == 'drive.accounts' %}class="active"{% endif %}>Google Drive Accounts</a></li>
+            <li><a href="{{ url_for('main.list_export_templates') }}" {% if request.endpoint == 'main.export_csv' %}class="active"{% endif %}>Export Templates</a></li>
+            <li><a href="{{ url_for('main.leads_overview') }}" {% if request.endpoint == 'main.leads_overview' %}class="active"{% endif %}>Leads</a></li>
+            <li><a href="{{ url_for('main.batch_manager') }}" {% if request.endpoint == 'main.batch_manager' %}class="active"{% endif %}>Batch Manager</a></li>
+        </ul>
+    </div>
+
+    <!-- Main Content -->
+    <div class="main-content">
+        <div class="container">
+            {% block content %}{% endblock %}
+        </div>
+    </div>
+
+    {% block extra_js %}{% endblock %}
+</body>
+</html>

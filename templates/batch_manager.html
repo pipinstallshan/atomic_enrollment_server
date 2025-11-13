@@ -1,0 +1,280 @@
+{% extends "base.html" %}
+{% block title %}Batch Manager{% endblock %}
+
+{% block extra_css %}
+<style>
+    .batch-container {
+        background: white;
+        padding: 20px;
+        margin-bottom: 20px;
+        border-radius: 6px;
+        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+    }
+    .batch-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+    }
+    .progress-bar {
+        height: 20px;
+        background-color: #ccc;
+        border-radius: 4px;
+        overflow: hidden;
+        margin: 10px 0;
+        width: 70%;
+        display: flex;
+    }
+    .progress-fill-completed {
+        height: 100%;
+        background-color: #28a745; /* Green for completed */
+        transition: width 0.5s ease;
+    }
+    .progress-fill-pending {
+        height: 100%;
+        background-color: #17a2b8; /* Light blue for pending/in progress */
+        transition: width 0.5s ease;
+    }
+    .progress-fill-failed {
+        height: 100%;
+        background-color: #dc3545; /* Red for failed */
+        transition: width 0.5s ease;
+    }
+    .failed-label {
+        color: #dc3545;
+        font-weight: bold;
+    }
+    .error-message {
+        color: #dc3545;
+        margin-top: 5px;
+        font-size: 0.9em;
+        max-width: 70%;
+    }
+    .btn-green {
+        background-color: #2ecc71;
+        color: white;
+        border: none;
+        padding: 10px 15px;
+        border-radius: 4px;
+        cursor: pointer;
+        font-size: 1em;
+    }
+    .btn-green:hover {
+        background-color: #27ae60;
+    }
+    .btn-red {
+        background-color: #e74c3c;
+        color: white;
+        border: none;
+        padding: 10px 15px;
+        border-radius: 4px;
+        cursor: pointer;
+        font-size: 1em;
+    }
+    .btn-red:hover {
+        background-color: #c0392b;
+    }
+    .batch-info {
+        margin: 10px 0;
+        color: #666;
+    }
+    /* Pagination styles */
+    .pagination {
+        display: flex;
+        justify-content: center;
+        margin: 20px 0;
+        align-items: center;
+    }
+    .pagination a, 
+    .pagination span {
+        margin: 0 5px;
+        padding: 8px 16px;
+        border-radius: 4px;
+        text-decoration: none;
+        color: #333;
+    }
+    .pagination a {
+        background-color: #f0f0f0;
+    }
+    .pagination a:hover {
+        background-color: #e0e0e0;
+    }
+    .pagination span.current {
+        background-color: #2ecc71;
+        color: white;
+    }
+    .pagination-info {
+        margin-bottom: 10px;
+        color: #666;
+        text-align: center;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<h1>Batch Manager</h1>
+
+{% if batch_info_list %}
+    <div class="pagination-info">
+        Showing page {{ pagination.page }} of {{ pagination.total_pages }} ({{ pagination.total_batches }} batches total)
+    </div>
+    
+    {% for batch in batch_info_list %}
+    <div class="batch-container">
+        <div class="batch-header">
+            <h3>{{ batch.batch_tag }}</h3>
+            <div>
+                <!-- Always show the Export button, even if progress < 100% -->
+                <button 
+                    class="btn-green"
+                    onclick="exportBatch('{{ batch.batch_tag }}')"
+                >
+                    Export CSV
+                </button>
+                <button 
+                    class="btn-green"
+                    onclick="renderBatch('{{ batch.batch_tag }}')"
+                >
+                    Render
+                </button>
+                <button 
+                    class="btn-red"
+                    onclick="deleteBatch('{{ batch.batch_tag }}')"
+                >
+                    Delete Batch
+                </button>
+            </div>
+        </div>
+        <div class="batch-info">
+            <p>Total Leads: {{ batch.total_leads }} | Completed: {{ batch.done_count }} 
+              <span class="failed-label">| Failed: {{ batch.failed_count }}</span>
+            </p>
+        </div>
+        <div class="progress-bar">
+            <div class="progress-fill-completed" style="width: {{ batch.completed_percent }}%;"></div>
+            <div class="progress-fill-pending" style="width: {{ batch.pending_percent }}%;"></div>
+            <div class="progress-fill-failed" style="width: {{ batch.failed_percent }}%;"></div>
+        </div>
+        <p>{{ batch.progress_percent }}% complete</p>
+        {% if batch.failed_count > 0 %}
+            <p class="failed-label">{{ batch.failed_percent }}% have failed tasks</p>
+            {% if batch.error_messages %}
+                <div class="error-message">
+                    <p><strong>Error(s):</strong></p>
+                    <ul>
+                    {% for error in batch.error_messages %}
+                        <li>{{ error }}</li>
+                    {% endfor %}
+                    </ul>
+                </div>
+            {% endif %}
+        {% endif %}
+    </div>
+    {% endfor %}
+
+    <!-- Pagination controls -->
+    <div class="pagination">
+        {% if pagination.has_prev %}
+            <a href="{{ url_for('main.batch_manager', page=pagination.prev_page) }}">← Previous</a>
+        {% else %}
+            <span>← Previous</span>
+        {% endif %}
+        
+        {% for p in range(max(1, pagination.page - 2), min(pagination.total_pages + 1, pagination.page + 3)) %}
+            {% if p == pagination.page %}
+                <span class="current">{{ p }}</span>
+            {% else %}
+                <a href="{{ url_for('main.batch_manager', page=p) }}">{{ p }}</a>
+            {% endif %}
+        {% endfor %}
+        
+        {% if pagination.has_next %}
+            <a href="{{ url_for('main.batch_manager', page=pagination.next_page) }}">Next →</a>
+        {% else %}
+            <span>Next →</span>
+        {% endif %}
+    </div>
+{% else %}
+    <p>No batches found.</p>
+{% endif %}
+
+<script>
+function renderBatch(batchTag) {
+    if (!confirm("Start rendering for all leads in this batch? This will also reset any failed tasks to pending.")) {
+        return;
+    }
+    fetch("{{ url_for('main.render_batch') }}", {
+        method: "POST",
+        headers: {"Content-Type": "application/json"},
+        body: JSON.stringify({ batch_tag: batchTag })
+    })
+    .then(res => res.json())
+    .then(data => {
+        if (data.status === 'ok') {
+            alert("Render tasks started for all leads in this batch. Any failed tasks have been reset to 'pending'.");
+            // Reload the page to show updated status
+            location.reload();
+        } else {
+            alert("Could not start rendering: " + data.message);
+        }
+    })
+    .catch(err => {
+        console.error(err);
+        alert("Error rendering batch");
+    });
+}
+
+function exportBatch(batchTag) {
+    if (!confirm("Export this batch? Only leads with a YouTube link will be included.")) {
+        return;
+    }
+    fetch("{{ url_for('main.export_batch') }}", {
+        method: "POST",
+        headers: {"Content-Type": "application/json"},
+        body: JSON.stringify({ batch_tag: batchTag })
+    })
+    .then(res => res.json())
+    .then(data => {
+        if (data.status === 'ok') {
+            // Force a download using the returned CSV URL
+            window.location = data.download_url;
+        } else {
+            alert("Export failed: " + data.message);
+        }
+    })
+    .catch(err => {
+        console.error(err);
+        alert("Error exporting batch");
+    });
+}
+
+function deleteBatch(batchTag) {
+    if (!confirm("WARNING: This will delete ALL leads and companies in this batch. This cannot be undone. Are you sure?")) {
+        return;
+    }
+    // Double confirmation for such a destructive action
+    if (!confirm("FINAL WARNING: You are about to permanently delete all data associated with batch '" + batchTag + "'. Proceed?")) {
+        return;
+    }
+    
+    fetch("{{ url_for('main.delete_batch') }}", {
+        method: "POST",
+        headers: {"Content-Type": "application/json"},
+        body: JSON.stringify({ batch_tag: batchTag })
+    })
+    .then(res => res.json())
+    .then(data => {
+        if (data.status === 'ok') {
+            alert("Successfully deleted all data for batch '" + batchTag + "'.");
+            // Reload the page to update the batch list
+            location.reload();
+        } else {
+            alert("Failed to delete batch: " + data.message);
+        }
+    })
+    .catch(err => {
+        console.error(err);
+        alert("Error deleting batch");
+    });
+}
+</script>
+{% endblock %}

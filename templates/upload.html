@@ -1,0 +1,196 @@
+{% extends "base.html" %}
+
+{% block title %}Upload CSV - Video Automation{% endblock %}
+
+{% block extra_css %}
+<style>
+    .upload-container {
+        border: 2px dashed #ccc;
+        padding: 40px 20px;
+        text-align: center;
+        margin: 20px 0;
+        transition: all 0.3s ease;
+        position: relative;
+        background-color: white;
+        border-radius: 8px;
+    }
+    .upload-container.dragover {
+        background-color: #e1f5fe;
+        border-color: #039be5;
+    }
+    .upload-btn {
+        background-color: #007bff;
+        color: white;
+        padding: 10px 20px;
+        border: none;
+        border-radius: 4px;
+        cursor: pointer;
+        margin-top: 10px;
+    }
+    .upload-btn:hover {
+        background-color: #0056b3;
+    }
+    .upload-btn:disabled {
+        background-color: #cccccc;
+        cursor: not-allowed;
+    }
+    .file-input {
+        display: none;
+    }
+    .drag-text {
+        margin-bottom: 15px;
+        color: #666;
+    }
+    .or-separator {
+        margin: 15px 0;
+        color: #666;
+    }
+    .browse-btn {
+        color: #007bff;
+        text-decoration: underline;
+        cursor: pointer;
+    }
+    .browse-btn:hover {
+        color: #0056b3;
+    }
+    .selected-file {
+        margin-top: 10px;
+        color: #666;
+    }
+    .loading-overlay {
+        display: none;
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background: rgba(255, 255, 255, 0.8);
+        z-index: 1000;
+        justify-content: center;
+        align-items: center;
+    }
+    .loading-spinner {
+        width: 50px;
+        height: 50px;
+        border: 5px solid #f3f3f3;
+        border-top: 5px solid #007bff;
+        border-radius: 50%;
+        animation: spin 1s linear infinite;
+    }
+    .loading-text {
+        margin-top: 20px;
+        color: #007bff;
+        font-weight: bold;
+    }
+    @keyframes spin {
+        0% { transform: rotate(0deg); }
+        100% { transform: rotate(360deg); }
+    }
+    .loading-container {
+        text-align: center;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<h1>Upload CSV File</h1>
+
+<!-- Loading Overlay -->
+<div class="loading-overlay" id="loading-overlay">
+    <div class="loading-container">
+        <div class="loading-spinner"></div>
+        <div class="loading-text">Processing your CSV file...</div>
+    </div>
+</div>
+
+<form method="post" enctype="multipart/form-data" id="upload-form">
+    <div class="upload-container" id="drop-zone">
+        <div class="drag-text">Drag and drop your CSV file here</div>
+        <div class="or-separator">or</div>
+        <span class="browse-btn" onclick="document.getElementById('file-input').click()">Browse Files</span>
+        <input type="file" name="file" accept=".csv" class="file-input" id="file-input">
+        <div class="selected-file" id="file-name"></div>
+        <input type="submit" value="Upload" class="upload-btn" id="submit-btn" style="display: none;">
+    </div>
+</form>
+
+{% if message %}
+<div class="message {% if 'successfully' in message %}success{% else %}error{% endif %}">
+    {{ message|replace('\n', '<br>')|safe }}
+</div>
+{% endif %}
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    const dropZone = document.getElementById('drop-zone');
+    const fileInput = document.getElementById('file-input');
+    const fileName = document.getElementById('file-name');
+    const submitBtn = document.getElementById('submit-btn');
+    const uploadForm = document.getElementById('upload-form');
+    const loadingOverlay = document.getElementById('loading-overlay');
+
+    // Prevent default drag behaviors
+    ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eventName => {
+        dropZone.addEventListener(eventName, preventDefaults, false);
+        document.body.addEventListener(eventName, preventDefaults, false);
+    });
+
+    // Highlight drop zone when item is dragged over it
+    ['dragenter', 'dragover'].forEach(eventName => {
+        dropZone.addEventListener(eventName, highlight, false);
+    });
+
+    ['dragleave', 'drop'].forEach(eventName => {
+        dropZone.addEventListener(eventName, unhighlight, false);
+    });
+
+    // Handle dropped files
+    dropZone.addEventListener('drop', handleDrop, false);
+
+    // Handle selected files
+    fileInput.addEventListener('change', handleFiles, false);
+
+    // Handle form submission
+    uploadForm.addEventListener('submit', handleSubmit, false);
+
+    function preventDefaults (e) {
+        e.preventDefault();
+        e.stopPropagation();
+    }
+
+    function highlight(e) {
+        dropZone.classList.add('dragover');
+    }
+
+    function unhighlight(e) {
+        dropZone.classList.remove('dragover');
+    }
+
+    function handleDrop(e) {
+        const dt = e.dataTransfer;
+        const files = dt.files;
+        handleFiles({ target: { files: files } });
+    }
+
+    function handleFiles(e) {
+        const files = e.target.files;
+        if (files.length) {
+            const file = files[0];
+            if (file.name.toLowerCase().endsWith('.csv')) {
+                fileName.textContent = `Selected file: ${file.name}`;
+                submitBtn.style.display = 'inline-block';
+                fileInput.files = files;
+            } else {
+                fileName.textContent = 'Please select a CSV file';
+                submitBtn.style.display = 'none';
+            }
+        }
+    }
+
+    function handleSubmit(e) {
+        loadingOverlay.style.display = 'flex';
+        submitBtn.disabled = true;
+    }
+</script>
+{% endblock %}
